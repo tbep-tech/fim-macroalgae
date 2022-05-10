@@ -83,6 +83,5 @@ csvout <- alldat %>%
   st_set_geometry(NULL)
 
 write.csv(csvout, here('data/raw/csvout.csv'))
-write.csv(csvout, )  
 
 
