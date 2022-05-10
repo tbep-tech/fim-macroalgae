@@ -4,6 +4,7 @@ library(here)
 library(sf)
 library(mapview)
 library(lubridate)
+library(tbeptools)
 
 prj <- 4326
 tbsegshedcr <- st_make_valid(tbsegshed)
@@ -15,7 +16,6 @@ phyraw <- read_sas(here('data/raw/tbm_physical.sas7bdat'))
 habraw <- read_sas(here('data/raw/tbm_habitat.sas7bdat'))
 fimraw <- read_sas(here('data/raw/fim_codes.sas7bdat'))
 hydraw <- read_sas(here('data/raw/tbm_hydrolab.sas7bdat'))
-
 
 # process data ------------------------------------------------------------
 
@@ -52,7 +52,37 @@ habdat <- habraw %>%
   filter(!is.na(Description))
 
 # combine phydat and habdat
+# get cpue using conversion factors
+# remove duplicate true negatives
+# intersect with bay segments
 alldat <- phydat %>% 
-  inner_join(habdat, by = 'Reference')
+  inner_join(habdat, by = 'Reference') %>% 
+  mutate(
+    conv = case_when(
+      Gear == 20 ~ 140 / 100,
+      Gear == 160 ~ 4120 / 100,
+      Gear %in% c(300, 301) ~ (Dist_tow * 4 * 1853) / 100
+    ), 
+    cpue_gper100m2 = ByCatchRatio * 0.1 * (BycatchQuantity / conv),
+    ByCatchType = gsub('^\\.$', 'NO', ByCatchType), 
+    Description = gsub('^No bycatch type recorded \\(null\\)$', 'None', Description)
+  ) %>% 
+  unique() %>% 
+  st_intersection(tbsegshedcr) %>% 
+  select(date, Reference, Gear, Description, cpue_gper100m2, long_name, bay_segment)
+
+# save output -------------------------------------------------------------
+
+save(alldat, file = here('data/alldat.RData'))
+
+csvout <- alldat %>% 
+  mutate(
+    Longitude = st_coordinates(.)[, 1], 
+    Latitude = st_coordinates(.)[, 2]
+  ) %>% 
+  st_set_geometry(NULL)
+
+write.csv(csvout, here('data/raw/csvout.csv'))
+write.csv(csvout, )  
 
 
