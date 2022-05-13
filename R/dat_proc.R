@@ -9,6 +9,9 @@ library(tbeptools)
 prj <- 4326
 tbsegshedcr <- st_make_valid(tbsegshed)
 
+# macroalgae relevant descriptions im fimraw
+dscrp <- c('Acanthophora spp.', 'Algae: Drift', 'Algae: Filamentous green', 'Algae: Filamentous red', 'Algae: Mixed', 'Caulerpa spp.', 'Dapis/Lyngbya spp. (filamentous cyanobacteria)', 'Gracilaria spp.', 'Ulva spp.', 'None')
+
 # raw data ----------------------------------------------------------------
 
 # import original SAS data
@@ -71,6 +74,41 @@ alldat <- phydat %>%
   st_intersection(tbsegshedcr) %>% 
   select(date, Reference, Gear, Description, cpue_gper100m2, long_name, bay_segment)
 
+# this dataset selects only gear 20 and 160 (used in Hall et al.)
+# filter by major bay segments
+# filters by relevant descriptors for macroalgae, including empty sets
+# removes 'None' from References that have macroalgae 
+# changes all other macroalgae descriptors to mixed
+# then takes an average at each reference
+algdat <- alldat %>% 
+  st_set_geometry(NULL) %>% 
+  filter(Gear %in% c(20, 160)) %>% 
+  filter(bay_segment %in% c('HB', 'LTB', 'MTB', 'OTB')) %>% 
+  filter(Description %in% dscrp) %>% 
+  group_by(Reference) %>%
+  filter(
+    if(any(Description != 'None')) 
+      Description != 'None'
+    else
+      T
+  ) %>% 
+  ungroup() %>% 
+  mutate(
+    cpue_gper100m2 = ifelse(is.na(cpue_gper100m2), 0, cpue_gper100m2)
+  ) %>% 
+  group_by(date, Gear, long_name, bay_segment) %>% 
+  summarise(
+    cpue_gper100m2 = mean(cpue_gper100m2), 
+    .groups = 'drop'
+  ) %>% 
+  mutate(
+    bay_segment = factor(bay_segment, levels = c('OTB', 'HB', 'MTB', 'LTB')), 
+    Gear = factor(Gear, levels = c(20, 160), labels = c('21.3m', '183m')),
+    mo = month(date, label = T),
+    yr = year(date),
+    doy = yday(date)
+  ) 
+
 # save output -------------------------------------------------------------
 
 save(alldat, file = here('data/alldat.RData'))
@@ -84,4 +122,4 @@ csvout <- alldat %>%
 
 write.csv(csvout, here('data/raw/csvout.csv'))
 
-
+save(algdat, file = here('data/algdat.RData'))
