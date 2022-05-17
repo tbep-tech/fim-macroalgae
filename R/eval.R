@@ -192,7 +192,7 @@ p <- ggplot(modprd, aes(x = doylb, y = prd, group = Year, color = Year)) +
     caption = 'CPUE as gallons / 100m2'
   )
 
-jpeg(here('figs/gampreddoy.jpeg'), height = 5.5, width = 8, family = fml, units = 'in', res = 300)
+jpeg(here('figs/gampreddoy.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
@@ -209,7 +209,7 @@ p <- ggplot(modprd %>% filter(Gear == '183m'), aes(x = date, y = prd)) +
     caption = 'CPUE as gallons / 100m2'
   )
 
-jpeg(here('figs/gam183predann.jpeg'), height = 5, width = 8, family = fml, units = 'in', res = 300)
+jpeg(here('figs/gam183predann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
@@ -226,7 +226,7 @@ p <- ggplot(modprd %>% filter(Gear == '21.3m'), aes(x = date, y = prd)) +
     caption = 'CPUE as gallons / 100m2'
   )
 
-jpeg(here('figs/gam213predann.jpeg'), height = 5, width = 8, family = fml, units = 'in', res = 300)
+jpeg(here('figs/gam213predann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
@@ -240,7 +240,7 @@ p <- ggplot(modprd %>% filter(Gear == '183m'), aes(x = date, y = `s(cont_year)`)
     x = NULL
   )
 
-jpeg(here('figs/gam183ann.jpeg'), height = 5, width = 8, family = fml, units = 'in', res = 300)
+jpeg(here('figs/gam183ann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
@@ -254,7 +254,7 @@ p <- ggplot(modprd %>% filter(Gear == '21.3m'), aes(x = date, y = `s(cont_year)`
     x = NULL
   )
 
-jpeg(here('figs/gam213ann.jpeg'), height = 5, width = 8, family = fml, units = 'in', res = 300)
+jpeg(here('figs/gam213ann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
@@ -268,6 +268,6 @@ p <- ggplot(modprd, aes(x = doylb, y = `s(doy)`)) +
     x = NULL
   )
 
-jpeg(here('figs/gamseas.jpeg'), height = 5.5, width = 8, family = fml, units = 'in', res = 300)
+jpeg(here('figs/gamseas.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
