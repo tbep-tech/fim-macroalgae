@@ -152,9 +152,11 @@ modprd <- mods %>%
   unnest('gamprd') %>% 
   left_join(algdat, by = c('date', 'Gear', 'bay_segment', 'doy')) %>% 
   mutate(
-    yr = year(date), 
-    mo = month(date)
+    Year = year(date), 
+    mo = month(date), 
+    doylb = date
   )
+year(modprd$doylb) <- 0
 
 modprf <- mods %>% 
   select(Gear, bay_segment, gammod) %>% 
@@ -177,45 +179,95 @@ thm <- theme_ipsum(base_family = fml, plot_margin = margin(10, 10, 10, 10)) +
 
 colyrs <- c(rep('lightgrey', 3), brewer.pal(9, 'Greys')[5:8])
 
-ggplot(modprd, aes(x = doy, y = prd, group = yr, color = yr)) + 
+p <- ggplot(modprd, aes(x = doylb, y = prd, group = Year, color = Year)) + 
   geom_line() + 
   # scale_y_log10() + 
   scale_color_gradientn(colors = colyrs) +
+  scale_x_date(date_labels = '%b', breaks = ymd('0000-01-01', '0000-04-01', '0000-07-01', '0000-10-01')) +
   facet_grid(Gear ~ bay_segment, scales = 'free_y') + 
-  thm
+  thm + 
+  labs(
+    x = NULL, 
+    y = 'Predicted CPUE', 
+    caption = 'CPUE as gallons / 100m2'
+  )
 
-ggplot(modprd %>% filter(Gear == '183m'), aes(x = date, y = prd)) + 
+jpeg(here('figs/gampreddoy.jpeg'), height = 5.5, width = 8, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
+
+p <- ggplot(modprd %>% filter(Gear == '183m'), aes(x = date, y = prd)) + 
   geom_line(color = 'tomato1') + 
   geom_point(aes(y = cpue_gper100m2), size = 0.25) +
   scale_y_log10() +
-  facet_wrap(~ bay_segment, ncol = 1) + 
+  facet_grid(bay_segment ~ .) + 
   thm + 
-  labs(subtitle = '183m')
+  labs(
+    subtitle = '183m',
+    x = NULL, 
+    y = 'Predicted CPUE', 
+    caption = 'CPUE as gallons / 100m2'
+  )
 
-ggplot(modprd %>% filter(Gear == '21.3m'), aes(x = date, y = prd)) + 
-  geom_line(col = 'tomato1') + 
+jpeg(here('figs/gam183predann.jpeg'), height = 5, width = 8, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
+
+p <- ggplot(modprd %>% filter(Gear == '21.3m'), aes(x = date, y = prd)) + 
+  geom_line(color = 'tomato1') + 
   geom_point(aes(y = cpue_gper100m2), size = 0.25) +
-  scale_y_log10() + 
-  facet_wrap(~ bay_segment, ncol = 1) + 
+  scale_y_log10() +
+  facet_grid(bay_segment ~ .) + 
   thm + 
-  labs(subtitle = '21.3m')
+  labs(
+    subtitle = '21.3m',
+    x = NULL, 
+    y = 'Predicted CPUE', 
+    caption = 'CPUE as gallons / 100m2'
+  )
 
-ggplot(modprd %>% filter(Gear == '21.3m'), aes(x = date, y = `s(cont_year)`)) + 
+jpeg(here('figs/gam213predann.jpeg'), height = 5, width = 8, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
+
+p <- ggplot(modprd %>% filter(Gear == '183m'), aes(x = date, y = `s(cont_year)`)) + 
   geom_ribbon(aes(ymin = `s(cont_year)` - `s(cont_year)_se`, ymax = `s(cont_year)` + `s(cont_year)_se`), fill = 'grey', alpha = 0.3) +
   geom_line(col = 'tomato1') + 
   facet_grid(bay_segment ~ .) + 
   thm +
-  labs(subtitle = '21.3m')
+  labs(
+    subtitle = '183m',
+    x = NULL
+  )
 
-ggplot(modprd %>% filter(Gear == '183m'), aes(x = date, y = `s(cont_year)`)) + 
+jpeg(here('figs/gam183ann.jpeg'), height = 5, width = 8, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
+
+p <- ggplot(modprd %>% filter(Gear == '21.3m'), aes(x = date, y = `s(cont_year)`)) + 
   geom_ribbon(aes(ymin = `s(cont_year)` - `s(cont_year)_se`, ymax = `s(cont_year)` + `s(cont_year)_se`), fill = 'grey', alpha = 0.3) +
   geom_line(col = 'tomato1') + 
   facet_grid(bay_segment ~ .) + 
   thm +
-  labs(subtitle = '183m')
+  labs(
+    subtitle = '21.3m',
+    x = NULL
+  )
 
-ggplot(modprd, aes(x = doy, y = `s(doy)`)) + 
+jpeg(here('figs/gam213ann.jpeg'), height = 5, width = 8, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
+
+p <- ggplot(modprd, aes(x = doylb, y = `s(doy)`)) + 
   geom_ribbon(aes(ymin = `s(doy)` - `s(doy)_se`, ymax = `s(doy)` + `s(doy)_se`), fill = 'grey', alpha = 0.3) +
   geom_line(col = 'tomato1') + 
-  facet_grid(bay_segment ~ Gear) + 
-  thm
+  scale_x_date(date_labels = '%b', breaks = ymd('0000-01-01', '0000-04-01', '0000-07-01', '0000-10-01')) +
+  facet_grid(Gear ~ bay_segment, scales = 'free_y') + 
+  thm+ 
+  labs(
+    x = NULL
+  )
+
+jpeg(here('figs/gamseas.jpeg'), height = 5.5, width = 8, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
