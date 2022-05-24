@@ -55,7 +55,7 @@ p <- ggplot(toplo1, aes(x = mo, y = medv, group = Gear, color = Gear)) +
     caption = 'CPUE as gallons / 100m2'
   )
 
-jpeg(here('figs/obsmo.jpeg'), height = 5, width = 6, family = fml, units = 'in', res = 500)
+jpeg(here('figs/obsmo.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
@@ -84,7 +84,7 @@ p <- ggplot(toplo2, aes(x = yr, y = medv, group = Gear, color = Gear)) +
     caption = 'CPUE as gallons / 100m2'
   )
 
-jpeg(here('figs/obsyr.jpeg'), height = 5, width = 6, family = fml, units = 'in', res = 500)
+jpeg(here('figs/obsyr.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
@@ -103,7 +103,7 @@ p <- ggplot(toplo2, aes(x = yr, y = medv, group = Gear, color = Gear)) +
     caption = 'CPUE as gallons / 100m2'
   )
 
-jpeg(here('figs/obsyrlm.jpeg'), height = 5, width = 6, family = fml, units = 'in', res = 500)
+jpeg(here('figs/obsyrlm.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
@@ -196,69 +196,38 @@ jpeg(here('figs/gampreddoy.jpeg'), height = 5, width = 10, family = fml, units =
 print(p)
 dev.off()
 
-p <- ggplot(modprd %>% filter(Gear == '183m'), aes(x = date, y = prd)) + 
+p <- ggplot(modprd, aes(x = date, y = prd)) + 
   geom_line(color = 'tomato1') + 
   geom_point(aes(y = cpue_gper100m2), size = 0.25) +
   scale_y_log10() +
-  facet_grid(bay_segment ~ .) + 
+  facet_grid(bay_segment ~ Gear) + 
   thm + 
   labs(
-    subtitle = '183m',
     x = NULL, 
     y = 'Predicted CPUE', 
     caption = 'CPUE as gallons / 100m2'
   )
 
-jpeg(here('figs/gam183predann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
+jpeg(here('figs/gampredann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
-p <- ggplot(modprd %>% filter(Gear == '21.3m'), aes(x = date, y = prd)) + 
-  geom_line(color = 'tomato1') + 
-  geom_point(aes(y = cpue_gper100m2), size = 0.25) +
-  scale_y_log10() +
-  facet_grid(bay_segment ~ .) + 
-  thm + 
-  labs(
-    subtitle = '21.3m',
-    x = NULL, 
-    y = 'Predicted CPUE', 
-    caption = 'CPUE as gallons / 100m2'
-  )
-
-jpeg(here('figs/gam213predann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
-print(p)
-dev.off()
-
-p <- ggplot(modprd %>% filter(Gear == '183m'), aes(x = date, y = `s(cont_year)`)) + 
+p <- ggplot(modprd, aes(x = date, y = `s(cont_year)`)) + 
+  geom_hline(yintercept = 0) +
   geom_ribbon(aes(ymin = `s(cont_year)` - `s(cont_year)_se`, ymax = `s(cont_year)` + `s(cont_year)_se`), fill = 'grey', alpha = 0.3) +
   geom_line(col = 'tomato1') + 
-  facet_grid(bay_segment ~ .) + 
+  facet_grid(bay_segment ~ Gear) + 
   thm +
   labs(
-    subtitle = '183m',
     x = NULL
   )
 
-jpeg(here('figs/gam183ann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
-print(p)
-dev.off()
-
-p <- ggplot(modprd %>% filter(Gear == '21.3m'), aes(x = date, y = `s(cont_year)`)) + 
-  geom_ribbon(aes(ymin = `s(cont_year)` - `s(cont_year)_se`, ymax = `s(cont_year)` + `s(cont_year)_se`), fill = 'grey', alpha = 0.3) +
-  geom_line(col = 'tomato1') + 
-  facet_grid(bay_segment ~ .) + 
-  thm +
-  labs(
-    subtitle = '21.3m',
-    x = NULL
-  )
-
-jpeg(here('figs/gam213ann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
+jpeg(here('figs/gamann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
 p <- ggplot(modprd, aes(x = doylb, y = `s(doy)`)) + 
+  geom_hline(yintercept = 0) +
   geom_ribbon(aes(ymin = `s(doy)` - `s(doy)_se`, ymax = `s(doy)` + `s(doy)_se`), fill = 'grey', alpha = 0.3) +
   geom_line(col = 'tomato1') + 
   scale_x_date(date_labels = '%b', breaks = ymd('0000-01-01', '0000-04-01', '0000-07-01', '0000-10-01')) +
