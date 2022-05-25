@@ -9,17 +9,14 @@ library(showtext)
 library(RColorBrewer)
 
 data(algdat)
+data(alldat)
 
 # get font
 font_add_google("Roboto", "roboto")#, regular = 'C:/Windows/Fonts/Roboto.ttf')
 fml <- "roboto"
-
+ 
 showtext_auto()
-showtext_opts(dpi = 300)
-
-# observed plots ----------------------------------------------------------
-
-ddg <- 0.4
+showtext_op %>% ts(dpi = 300)
 
 thm <- theme_ipsum(base_family = fml, plot_margin = margin(10, 10, 10, 10)) + 
   theme(
@@ -29,6 +26,50 @@ thm <- theme_ipsum(base_family = fml, plot_margin = margin(10, 10, 10, 10)) +
     axis.title.y = element_text(hjust = 0.5, size = 12), 
     legend.position = 'top'
   )
+
+# bar plot counts of relevant macroalgae descriptions ---------------------
+
+# macroalgae relevant descriptions im fimraw
+dscrp <- c('Acanthophora spp.', 'Algae: Drift', 'Algae: Filamentous green', 'Algae: Filamentous red', 'Algae: Mixed', 'Caulerpa spp.', 'Dapis/Lyngbya spp. (filamentous cyanobacteria)', 'Gracilaria spp.', 'Ulva spp.', 'None')
+
+toplo <- alldat %>% 
+  select(Description) %>% 
+  filter(Description %in% dscrp) %>% 
+  pull(Description) %>% 
+  table %>% 
+  data.frame %>% 
+  rename(
+    Description = '.', 
+    Count = Freq
+  ) %>% 
+  arrange(Count) %>% 
+  mutate(
+    Description = factor(Description, levels = Description), 
+    lab = format(Count, format = 'd', big.mark = ',')
+  )
+
+p <- ggplot(toplo, aes(y = Description, x = Count)) + 
+  geom_bar(stat = 'identity') + 
+  geom_text(aes(label = lab), hjust = 0) + 
+  scale_x_continuous(limits = c(0, max(toplo$Count) * 1.2)) + 
+  thm + 
+  theme(
+    panel.grid.major.y = element_blank(), 
+    panel.grid.major.x = element_line()
+  ) +
+  labs(
+    y = NULL, 
+    title = 'Count of macroalgae related records',
+    subtitle = 'FIM bycatch for Tampa Bay, 1998 to 2020'
+  )
+
+jpeg(here('figs/counts.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
+
+# observed plots ----------------------------------------------------------
+
+ddg <- 0.4
 
 toplo1 <- algdat %>% 
   group_by(mo, bay_segment, Gear) %>% 
