@@ -8,6 +8,8 @@ library(here)
 library(showtext)
 library(RColorBrewer)
 library(tbeptools)
+library(wqtrends)
+library(flextable)
 
 data(algdat)
 data(alldat)
@@ -309,7 +311,7 @@ mods <- algdat %>%
   mutate(
     gammod = purrr::map(data, function(x){
       
-      gam(log10(1 + cpue_gper100m2) ~ s(cont_year, k = 20) + s(doy, bs = 'cc'), data = x)
+      gam(log10(1 + cpue_gper100m2) ~ s(cont_year, k = 20) + s(doy, bs = 'cc') + ti(cont_year, doy, bs = c('tp', 'cc')), data = x)
       
     }), 
     gamprd = purrr::pmap(list(data, gammod), function(data, gammod){
@@ -391,7 +393,7 @@ p <- ggplot(modprd, aes(x = date, y = prd)) +
   geom_line(color = '#00806E') + 
   geom_point(aes(y = cpue_gper100m2), size = 0.25) +
   scale_y_log10() +
-  facet_grid(bay_segment ~ Gear) + 
+  facet_grid(Gear ~ bay_segment) + 
   thm + 
   labs(
     x = NULL, 
@@ -407,7 +409,7 @@ p <- ggplot(modprd, aes(x = date, y = `s(cont_year)`)) +
   geom_hline(yintercept = 0) +
   geom_ribbon(aes(ymin = `s(cont_year)` - `s(cont_year)_se`, ymax = `s(cont_year)` + `s(cont_year)_se`), fill = 'grey', alpha = 0.3) +
   geom_line(col = '#00806E') + 
-  facet_grid(bay_segment ~ Gear) + 
+  facet_grid(Gear ~ bay_segment) + 
   thm +
   labs(
     x = NULL
@@ -431,3 +433,197 @@ p <- ggplot(modprd, aes(x = doylb, y = `s(doy)`)) +
 jpeg(here('figs/gamseas.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
+
+# gam mixmeta trends ------------------------------------------------------
+
+mods <- mods %>% 
+  mutate(
+    gammod = purrr::map(gammod, function(x){
+      x$trans = 'log10'
+      return(x)
+    })
+  )
+
+mixln_fun <- function(mixmet, mod, yrstr, yrend){
+  
+  # subtitle info
+  pval <- coefficients(summary(mixmet)) %>% data.frame %>% .[2, 4] %>% anlz_pvalformat()
+  
+  dispersion <- summary(mod)$dispersion
+  
+  # backtransform mixmeta predictions
+  out <- data.frame(
+    yr = seq(yrstr, yrend, length = 50)
+  ) %>% 
+    dplyr::mutate( 
+      met = predict(mixmet, newdata = data.frame(yr = yr)), 
+      se = predict(mixmet, newdata = data.frame(yr = yr), se = T)[, 2], 
+      bt_lwr = 10^((met - 1.96 * se) + log(10) * dispersion / 2),
+      bt_upr = 10^((met + 1.96 * se) + log(10) * dispersion / 2),
+      bt_met = 10^(met + log(10) * dispersion / 2), 
+      pval = pval
+    )
+  
+  return(out)
+  
+}
+
+ests <- tibble(
+  yrstr = 2010, 
+  yrend = 2020, 
+  doystr = c(1, 1, 182), 
+  doyend = c(338, 181, 338), 
+  period = c('Jan - Dec', 'Jan - Jun', 'Jul - Dec')
+) %>% 
+  crossing(., mods) %>% 
+  mutate(
+    avgest = purrr::pmap(list(gammod, doystr, doyend), anlz_avgseason),
+    mixmet = purrr::pmap(list(avgest, yrstr, yrend), anlz_mixmeta),
+    trndln = purrr::pmap(list(mixmet, gammod, yrstr, yrend), mixln_fun)
+  ) %>% 
+  select(-data, -gammod, -gamprd, -mixmet) 
+
+avgest <- ests %>% 
+  select(-trndln) %>% 
+  unnest('avgest')
+trndln <- ests %>% 
+  select(-avgest) %>% 
+  unnest('trndln')
+
+pr <- 'Jan - Dec'
+toplo1 <- avgest %>% 
+  filter(period == pr)
+toplo2 <- trndln %>% 
+  filter(period == pr) %>% 
+  mutate(
+    pval = case_when(
+      pval != 'ns' ~ 'p < 0.05', 
+      T ~ pval
+    ), 
+    pval = factor(pval, levels = c('p < 0.05', 'ns'))
+  )
+
+# plot output
+col1 <- '#958984'
+col2 <- '#00806E'
+p <- ggplot(data = toplo1, aes(x = yr, y = bt_met)) + 
+  geom_point(colour = col1) +
+  geom_errorbar(aes(ymin = bt_lwr, ymax = bt_upr), colour = col1) +
+  thm +
+  theme(axis.text.x = element_text(size = 9)) +
+  geom_ribbon(data = toplo2, aes(ymin = bt_lwr, ymax = bt_upr, fill = pval), alpha = 0.4) +
+  geom_line(data = toplo2, aes(color = pval)) +
+  scale_fill_manual(values = c(col2, NA)) + 
+  scale_color_manual(values = c(col2, NA)) +
+  facet_grid(Gear ~ bay_segment, scales = 'free_y') +
+  labs(
+    title = 'Estimated trends, 2010-2020',
+    subtitle = paste(pr, 'CPUE averages'),
+    y = 'Predicted CPUE', 
+    x = NULL, 
+    caption = 'CPUE as gallons / 100m2', 
+    color = NULL, 
+    fill = NULL
+  )
+
+jpeg(here('figs/gamtrnd1.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
+
+pr <- 'Jan - Jun'
+toplo1 <- avgest %>% 
+  filter(period == pr)
+toplo2 <- trndln %>% 
+  filter(period == pr) %>% 
+  mutate(
+    pval = case_when(
+      pval != 'ns' ~ 'p < 0.05', 
+      T ~ pval
+    ), 
+    pval = factor(pval, levels = c('p < 0.05', 'ns'))
+  )
+
+# plot output
+col1 <- '#958984'
+col2 <- '#00806E'
+p <- ggplot(data = toplo1, aes(x = yr, y = bt_met)) + 
+  geom_point(colour = col1) +
+  geom_errorbar(aes(ymin = bt_lwr, ymax = bt_upr), colour = col1) +
+  thm +
+  theme(axis.text.x = element_text(size = 9)) +
+  geom_ribbon(data = toplo2, aes(ymin = bt_lwr, ymax = bt_upr, fill = pval), alpha = 0.4) +
+  geom_line(data = toplo2, aes(color = pval)) +
+  scale_fill_manual(values = c(col2, NA)) + 
+  scale_color_manual(values = c(col2, NA)) +
+  facet_grid(Gear ~ bay_segment, scales = 'free_y') +
+  labs(
+    title = 'Estimated trends, 2010-2020',
+    subtitle = paste(pr, 'CPUE averages'),
+    y = 'Predicted CPUE', 
+    x = NULL, 
+    caption = 'CPUE as gallons / 100m2', 
+    color = NULL, 
+    fill = NULL
+  )
+
+jpeg(here('figs/gamtrnd2.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
+
+pr <- 'Jul - Dec'
+toplo1 <- avgest %>% 
+  filter(period == pr)
+toplo2 <- trndln %>% 
+  filter(period == pr) %>% 
+  mutate(
+    pval = case_when(
+      pval != 'ns' ~ 'p < 0.05', 
+      T ~ pval
+    ), 
+    pval = factor(pval, levels = c('p < 0.05', 'ns'))
+  )
+
+# plot output
+col1 <- '#958984'
+col2 <- '#00806E'
+p <- ggplot(data = toplo1, aes(x = yr, y = bt_met)) + 
+  geom_point(colour = col1) +
+  geom_errorbar(aes(ymin = bt_lwr, ymax = bt_upr), colour = col1) +
+  thm +
+  theme(axis.text.x = element_text(size = 9)) +
+  geom_ribbon(data = toplo2, aes(ymin = bt_lwr, ymax = bt_upr, fill = pval), alpha = 0.4) +
+  geom_line(data = toplo2, aes(color = pval)) +
+  scale_fill_manual(values = c(col2, NA)) + 
+  scale_color_manual(values = c(col2, NA)) +
+  facet_grid(Gear ~ bay_segment, scales = 'free_y') +
+  labs(
+    title = 'Estimated trends, 2010-2020',
+    subtitle = paste(pr, 'CPUE averages'),
+    y = 'Predicted CPUE', 
+    x = NULL, 
+    caption = 'CPUE as gallons / 100m2', 
+    color = NULL, 
+    fill = NULL
+  )
+
+jpeg(here('figs/gamtrnd3.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
+
+
+# gam model fits ----------------------------------------------------------
+
+fits <- mods %>% 
+  mutate(
+    fit = purrr::map(gammod, anlz_fit)
+  ) %>% 
+  select(Gear, `Bay segment` = bay_segment, fit) %>% 
+  mutate(`Bay segment` = factor(`Bay segment`, levels = c('OTB', 'HB', 'MTB', 'LTB'))) %>% 
+  arrange(Gear, `Bay segment`) %>% 
+  unnest('fit') %>% 
+  as_grouped_data(groups = 'Gear')
+  
+tab <- flextable(fits) %>% 
+  colformat_double(digits = 2)
+
+save_as_image(tab, path = 'figs/tab.png')
