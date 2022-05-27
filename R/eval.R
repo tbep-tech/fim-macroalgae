@@ -7,6 +7,7 @@ library(hrbrthemes)
 library(here)
 library(showtext)
 library(RColorBrewer)
+library(tbeptools)
 
 data(algdat)
 data(alldat)
@@ -16,7 +17,7 @@ font_add_google("Roboto", "roboto")#, regular = 'C:/Windows/Fonts/Roboto.ttf')
 fml <- "roboto"
  
 showtext_auto()
-showtext_op %>% ts(dpi = 300)
+showtext_opts(dpi = 300)
 
 thm <- theme_ipsum(base_family = fml, plot_margin = margin(10, 10, 10, 10)) + 
   theme(
@@ -26,6 +27,51 @@ thm <- theme_ipsum(base_family = fml, plot_margin = margin(10, 10, 10, 10)) +
     axis.title.y = element_text(hjust = 0.5, size = 12), 
     legend.position = 'top'
   )
+
+# barplot counts of species info in transect data -------------------------
+
+sgdat <- read_transect(raw = T)
+
+toplo <- sgdat %>% 
+  pull(Species) %>%  
+  table %>% 
+  data.frame %>% 
+  rename(
+    Description = '.', 
+    Count = Freq
+  ) %>% 
+  arrange(Count) %>% 
+  filter(!Description == 'No Cover') %>% 
+  mutate(
+    Description = factor(Description, levels = Description), 
+    lab = format(Count, format = 'd', big.mark = ','), 
+    sav = ifelse(Description %in% c('Halodule', 'Halophila spp.', 'Ruppia', 'Syringodium', 'Thalassia'), 'SAV', 'non-SAV'),
+    sav = factor(sav, levels = c('SAV', 'non-SAV'))
+  )
+
+p <- ggplot(toplo, aes(y = Description, x = Count)) + 
+  geom_bar(stat = 'identity', alpha = 0.7, aes(color = sav, fill = sav), size = 0.7, width = 0.7) + 
+  scale_color_manual(values = c('#00806E', '#958984')) +
+  scale_fill_manual(values = c('#00806E', '#958984')) +
+  geom_text(aes(label = lab), nudge_x = 200, hjust = 0) + 
+  scale_x_continuous(limits = c(0, max(toplo$Count) * 1.1)) + 
+  thm + 
+  theme(
+    panel.grid.major.y = element_blank(), 
+    panel.grid.major.x = element_line(),
+    panel.grid.minor.x = element_line()
+  ) +
+  labs(
+    y = NULL, 
+    color = NULL,
+    fill = NULL,
+    title = 'Count of records',
+    subtitle = 'Tampa Bay Annual Transect Monitoring, 1998 to 2021'
+  )
+
+jpeg(here('figs/trncounts.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
 
 # bar plot counts of relevant macroalgae descriptions ---------------------
 
@@ -49,21 +95,22 @@ toplo <- alldat %>%
   )
 
 p <- ggplot(toplo, aes(y = Description, x = Count)) + 
-  geom_bar(stat = 'identity') + 
-  geom_text(aes(label = lab), hjust = 0) + 
-  scale_x_continuous(limits = c(0, max(toplo$Count) * 1.2)) + 
+  geom_bar(stat = 'identity', alpha = 0.7, fill = '#958984', color = '#958984', size = 0.7) + 
+  geom_text(aes(label = lab), nudge_x = 200, hjust = 0) + 
+  scale_x_continuous(limits = c(0, max(toplo$Count) * 1.1)) + 
   thm + 
   theme(
     panel.grid.major.y = element_blank(), 
-    panel.grid.major.x = element_line()
+    panel.grid.major.x = element_line(),
+    panel.grid.minor.x = element_line()
   ) +
   labs(
     y = NULL, 
-    title = 'Count of macroalgae related records',
+    title = 'Count of records',
     subtitle = 'FIM bycatch for Tampa Bay, 1998 to 2020'
   )
 
-jpeg(here('figs/counts.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
+jpeg(here('figs/fimcounts.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
 
