@@ -120,6 +120,100 @@ jpeg(here('figs/fimcounts.jpeg'), height = 5, width = 10, family = fml, units = 
 print(p)
 dev.off()
 
+# transect fo -------------------------------------------------------------
+
+sgdat <- read_transect()
+
+# get complete data, fill all species not found with zero
+datcmp <- sgdat %>%
+  dplyr::filter(var %in% 'Abundance') %>%
+  dplyr::mutate(
+    Savspecies = dplyr::case_when(
+      grepl('Caulerpa', Savspecies) ~ 'Caulerpa',
+      grepl('^DR|^DA|^DG', Savspecies) ~ 'Macroalgae',
+      T ~ Savspecies
+    )
+  ) %>%
+  dplyr::select(Date, Transect, Site, Savspecies, bb = aveval) %>%
+  dplyr::group_by(Date, Transect, Site, Savspecies) %>%
+  dplyr::summarise(bb = mean(bb, na.rm = T), .groups = 'drop') %>%
+  dplyr::ungroup() %>%
+  tidyr::complete(Savspecies, tidyr::nesting(Date, Transect, Site), fill = list(bb = 0))
+
+# make no cover a five for bb if nothing else found
+datcmp <- datcmp %>%
+  dplyr::group_by(Transect, Date, Site) %>%
+  dplyr::mutate(
+    bb = dplyr::case_when(
+      Savspecies == 'No Cover' ~ 0,
+      T ~ bb
+    ),
+    bb = dplyr::case_when(
+      sum(bb[!Savspecies %in% 'No Cover']) == 0 & Savspecies == 'No Cover' ~ 5,
+      T ~ bb
+    )
+  )
+
+# summarise fo/bb by unique sites per date/transect, this is better than commented code
+transectocc <- datcmp %>%
+  dplyr::group_by(Date, Transect, Savspecies) %>%
+  dplyr::summarise(
+    nsites = length(unique(Site)),
+    foest = sum(bb > 0, na.rm = T) / nsites,
+    bbest = sum(bb, na.rm = T) / nsites
+  )
+
+yrrng <- c(1998, 2021)
+
+bay_segment <- c('OTB', 'HB', 'MTB', 'LTB')
+
+sf::st_crs(trnpts) <- 4326
+
+# pts by segment
+trnptsshed <- trnpts %>%
+  sf::st_set_geometry(NULL) %>%
+  dplyr::select(Transect = TRAN_ID, bay_segment) %>%
+  unique
+
+# fo by species
+filtdat <- transectocc %>%
+  dplyr::left_join(trnptsshed, by = 'Transect') %>%
+  dplyr::mutate(
+    yr = lubridate::year(Date)
+  ) %>%
+  dplyr::filter(yr >= yrrng[1] & yr <= yrrng[2]) %>%
+  dplyr::filter(bay_segment %in% !!bay_segment)
+
+# retain results across segments
+out <- filtdat %>%
+  dplyr::filter(Savspecies %in% c('Caulerpa', 'Macroalgae')) %>%
+  dplyr::group_by(yr, bay_segment, Savspecies) %>%
+  dplyr::summarise(
+    foest = mean(foest, na.rm = T),
+    nsites = sum(nsites, na.rm = T),
+    .groups = 'drop'
+  ) %>%
+  dplyr::mutate(
+    bay_segment = factor(bay_segment, levels = !!bay_segment)
+  )
+
+p <- ggplot(out, aes(x = yr, y = 100 * foest, color = Savspecies)) +
+  geom_line() + 
+  geom_point(size = 2) +
+  scale_color_manual(values = c('#00806E', '#958984')) +
+  facet_wrap(~bay_segment, ncol = 2) + 
+  thm + 
+  labs(
+    y = '% frequency occurrence', 
+    x = NULL, 
+    color = NULL, 
+    caption = 'Freq. occurrence as total estimate across transects by year/segment'
+  )
+
+jpeg(here('figs/trnfo.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
+
 # observed plots ----------------------------------------------------------
 
 ddg <- 0.4
@@ -139,6 +233,7 @@ p <- ggplot(toplo1, aes(x = mo, y = medv, group = Gear, color = Gear)) +
   geom_line(position = position_dodge(width = ddg)) + 
   geom_errorbar(aes(ymin = lov, ymax = hiv), width = 0, position = position_dodge(width = ddg), size = 0.25) +
   # geom_violin() + 
+  scale_color_manual(values = c('#00806E', '#958984')) +
   scale_y_log10() +
   facet_wrap(~bay_segment) + 
   thm + 
@@ -169,6 +264,7 @@ p <- ggplot(toplo2, aes(x = yr, y = medv, group = Gear, color = Gear)) +
   # geom_smooth(method = 'lm', se = F, linetype = 'solid') +
   geom_errorbar(aes(ymin = lov, ymax = hiv), width = 0, position = position_dodge(width = ddg), size = 0.25) +
   # scale_y_log10() +
+  scale_color_manual(values = c('#00806E', '#958984')) +
   scale_y_continuous(limits = c(0, 1)) +
   facet_wrap(~bay_segment) + 
   thm +
@@ -189,6 +285,7 @@ p <- ggplot(toplo2, aes(x = yr, y = medv, group = Gear, color = Gear)) +
   # geom_errorbar(aes(ymin = lov, ymax = hiv), width = 0, position = position_dodge(width = ddg)) +
   # scale_y_log10() +
   scale_y_continuous(limits = c(0, 1)) +
+  scale_color_manual(values = c('#00806E', '#958984')) +
   facet_wrap(~bay_segment) + 
   thm +
   labs(
@@ -271,7 +368,7 @@ thm <- theme_ipsum(base_family = fml, plot_margin = margin(10, 10, 10, 10)) +
     legend.key.width = unit(dev.size()[1] / 10, "inches")
   )
 
-colyrs <- c(rep('lightgrey', 3), brewer.pal(9, 'Greys')[5:8])
+colyrs <- c(rep('lightgrey', 3), brewer.pal(9, 'Greens')[4:8])
 
 p <- ggplot(modprd, aes(x = doylb, y = prd, group = Year, color = Year)) + 
   geom_line() + 
@@ -291,7 +388,7 @@ print(p)
 dev.off()
 
 p <- ggplot(modprd, aes(x = date, y = prd)) + 
-  geom_line(color = 'tomato1') + 
+  geom_line(color = '#00806E') + 
   geom_point(aes(y = cpue_gper100m2), size = 0.25) +
   scale_y_log10() +
   facet_grid(bay_segment ~ Gear) + 
@@ -309,7 +406,7 @@ dev.off()
 p <- ggplot(modprd, aes(x = date, y = `s(cont_year)`)) + 
   geom_hline(yintercept = 0) +
   geom_ribbon(aes(ymin = `s(cont_year)` - `s(cont_year)_se`, ymax = `s(cont_year)` + `s(cont_year)_se`), fill = 'grey', alpha = 0.3) +
-  geom_line(col = 'tomato1') + 
+  geom_line(col = '#00806E') + 
   facet_grid(bay_segment ~ Gear) + 
   thm +
   labs(
@@ -323,7 +420,7 @@ dev.off()
 p <- ggplot(modprd, aes(x = doylb, y = `s(doy)`)) + 
   geom_hline(yintercept = 0) +
   geom_ribbon(aes(ymin = `s(doy)` - `s(doy)_se`, ymax = `s(doy)` + `s(doy)_se`), fill = 'grey', alpha = 0.3) +
-  geom_line(col = 'tomato1') + 
+  geom_line(col = '#00806E') + 
   scale_x_date(date_labels = '%b', breaks = ymd('0000-01-01', '0000-04-01', '0000-07-01', '0000-10-01')) +
   facet_grid(Gear ~ bay_segment, scales = 'free_y') + 
   thm+ 
