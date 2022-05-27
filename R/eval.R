@@ -76,7 +76,7 @@ dev.off()
 # bar plot counts of relevant macroalgae descriptions ---------------------
 
 # macroalgae relevant descriptions im fimraw
-dscrp <- c('Acanthophora spp.', 'Algae: Drift', 'Algae: Filamentous green', 'Algae: Filamentous red', 'Algae: Mixed', 'Caulerpa spp.', 'Dapis/Lyngbya spp. (filamentous cyanobacteria)', 'Gracilaria spp.', 'Ulva spp.', 'None')
+dscrp <- c('Syringodium spp.', 'Thalassia spp.', 'Ruppia spp.', 'Halophila spp.', 'Halophila decipiens (paddle grass)', 'Halophila engelmanii  (star grass)', 'Halodule spp.', 'Acanthophora spp.', 'Algae: Drift', 'Algae: Filamentous green', 'Algae: Filamentous red', 'Algae: Mixed', 'Caulerpa spp.', 'Dapis/Lyngbya spp. (filamentous cyanobacteria)', 'Gracilaria spp.', 'Ulva spp.')
 
 toplo <- alldat %>% 
   select(Description) %>% 
@@ -91,11 +91,15 @@ toplo <- alldat %>%
   arrange(Count) %>% 
   mutate(
     Description = factor(Description, levels = Description), 
-    lab = format(Count, format = 'd', big.mark = ',')
+    lab = format(Count, format = 'd', big.mark = ','), 
+    sav = ifelse(Description %in% c('Syringodium spp.', 'Thalassia spp.', 'Ruppia spp.', 'Halophila spp.', 'Halophila decipiens (paddle grass)', 'Halophila engelmanii  (star grass)', 'Halodule spp.'), 'SAV', 'non-SAV'), 
+    sav = factor(sav, levels = c('SAV', 'non-SAV'))
   )
 
 p <- ggplot(toplo, aes(y = Description, x = Count)) + 
-  geom_bar(stat = 'identity', alpha = 0.7, fill = '#958984', color = '#958984', size = 0.7) + 
+  geom_bar(stat = 'identity', alpha = 0.7, aes(color = sav, fill = sav), size = 0.7, width = 0.7) + 
+  scale_color_manual(values = c('#00806E', '#958984')) +
+  scale_fill_manual(values = c('#00806E', '#958984')) +
   geom_text(aes(label = lab), nudge_x = 200, hjust = 0) + 
   scale_x_continuous(limits = c(0, max(toplo$Count) * 1.1)) + 
   thm + 
@@ -106,6 +110,8 @@ p <- ggplot(toplo, aes(y = Description, x = Count)) +
   ) +
   labs(
     y = NULL, 
+    color = NULL,
+    fill = NULL,
     title = 'Count of records',
     subtitle = 'FIM bycatch for Tampa Bay, 1998 to 2020'
   )
