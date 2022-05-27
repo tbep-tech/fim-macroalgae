@@ -393,8 +393,10 @@ p <- ggplot(modprd, aes(x = date, y = prd)) +
   geom_line(color = '#00806E') + 
   geom_point(aes(y = cpue_gper100m2), size = 0.25) +
   scale_y_log10() +
+  # scale_y_continuous(limits = c(0, 2)) +
   facet_grid(Gear ~ bay_segment) + 
   thm + 
+  theme(axis.text.x = element_text(size = 9)) +
   labs(
     x = NULL, 
     y = 'Predicted CPUE', 
@@ -411,6 +413,7 @@ p <- ggplot(modprd, aes(x = date, y = `s(cont_year)`)) +
   geom_line(col = '#00806E') + 
   facet_grid(Gear ~ bay_segment) + 
   thm +
+  theme(axis.text.x = element_text(size = 9)) +
   labs(
     x = NULL
   )
