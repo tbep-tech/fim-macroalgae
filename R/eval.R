@@ -81,8 +81,8 @@ dev.off()
 dscrp <- c('Syringodium spp.', 'Thalassia spp.', 'Ruppia spp.', 'Halophila spp.', 'Halophila decipiens (paddle grass)', 'Halophila engelmanii  (star grass)', 'Halodule spp.', 'Acanthophora spp.', 'Algae: Drift', 'Algae: Filamentous green', 'Algae: Filamentous red', 'Algae: Mixed', 'Caulerpa spp.', 'Dapis/Lyngbya spp. (filamentous cyanobacteria)', 'Gracilaria spp.', 'Ulva spp.')
 
 toplo <- alldat %>% 
-  select(Description) %>% 
   filter(Description %in% dscrp) %>% 
+  filter(Gear %in% c(20, 160)) %>%
   pull(Description) %>% 
   table %>% 
   data.frame %>% 
@@ -406,7 +406,6 @@ p <- ggplot(modprd, aes(x = date, y = prd)) +
 jpeg(here('figs/gampredann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
-
 p <- ggplot(modprd, aes(x = date, y = `s(cont_year)`)) + 
   geom_hline(yintercept = 0) +
   geom_ribbon(aes(ymin = `s(cont_year)` - `s(cont_year)_se`, ymax = `s(cont_year)` + `s(cont_year)_se`), fill = 'grey', alpha = 0.3) +
@@ -415,7 +414,8 @@ p <- ggplot(modprd, aes(x = date, y = `s(cont_year)`)) +
   thm +
   theme(axis.text.x = element_text(size = 9)) +
   labs(
-    x = NULL
+    x = NULL, 
+    y = 's(annual)'
   )
 
 jpeg(here('figs/gamann.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
@@ -430,12 +430,14 @@ p <- ggplot(modprd, aes(x = doylb, y = `s(doy)`)) +
   facet_grid(Gear ~ bay_segment, scales = 'free_y') + 
   thm+ 
   labs(
-    x = NULL
+    x = NULL, 
+    y = 's(day of year)'
   )
 
 jpeg(here('figs/gamseas.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
 print(p)
 dev.off()
+
 
 # gam mixmeta trends ------------------------------------------------------
 
@@ -474,9 +476,9 @@ mixln_fun <- function(mixmet, mod, yrstr, yrend){
 ests <- tibble(
   yrstr = 2010, 
   yrend = 2020, 
-  doystr = c(1, 1, 182), 
-  doyend = c(338, 181, 338), 
-  period = c('Jan - Dec', 'Jan - Jun', 'Jul - Dec')
+  doystr = c(1, 1, 182, 60), 
+  doyend = c(338, 181, 338, 212), 
+  period = c('Jan - Dec', 'Jan - Jun', 'Jul - Dec', 'Mar - Jul')
 ) %>% 
   crossing(., mods) %>% 
   mutate(
@@ -493,6 +495,9 @@ trndln <- ests %>%
   select(-avgest) %>% 
   unnest('trndln')
 
+col1 <- '#958984'
+col2 <- '#00806E'
+
 pr <- 'Jan - Dec'
 toplo1 <- avgest %>% 
   filter(period == pr)
@@ -507,8 +512,6 @@ toplo2 <- trndln %>%
   )
 
 # plot output
-col1 <- '#958984'
-col2 <- '#00806E'
 p <- ggplot(data = toplo1, aes(x = yr, y = bt_met)) + 
   geom_point(colour = col1) +
   geom_errorbar(aes(ymin = bt_lwr, ymax = bt_upr), colour = col1) +
@@ -547,8 +550,6 @@ toplo2 <- trndln %>%
   )
 
 # plot output
-col1 <- '#958984'
-col2 <- '#00806E'
 p <- ggplot(data = toplo1, aes(x = yr, y = bt_met)) + 
   geom_point(colour = col1) +
   geom_errorbar(aes(ymin = bt_lwr, ymax = bt_upr), colour = col1) +
@@ -587,8 +588,6 @@ toplo2 <- trndln %>%
   )
 
 # plot output
-col1 <- '#958984'
-col2 <- '#00806E'
 p <- ggplot(data = toplo1, aes(x = yr, y = bt_met)) + 
   geom_point(colour = col1) +
   geom_errorbar(aes(ymin = bt_lwr, ymax = bt_upr), colour = col1) +
@@ -613,6 +612,43 @@ jpeg(here('figs/gamtrnd3.jpeg'), height = 5, width = 10, family = fml, units = '
 print(p)
 dev.off()
 
+pr <- 'Mar - Jul'
+toplo1 <- avgest %>% 
+  filter(period == pr)
+toplo2 <- trndln %>% 
+  filter(period == pr) %>% 
+  mutate(
+    pval = case_when(
+      pval != 'ns' ~ 'p < 0.05', 
+      T ~ pval
+    ), 
+    pval = factor(pval, levels = c('p < 0.05', 'ns'))
+  )
+
+# plot output
+p <- ggplot(data = toplo1, aes(x = yr, y = bt_met)) + 
+  geom_point(colour = col1) +
+  geom_errorbar(aes(ymin = bt_lwr, ymax = bt_upr), colour = col1) +
+  thm +
+  theme(axis.text.x = element_text(size = 9)) +
+  geom_ribbon(data = toplo2, aes(ymin = bt_lwr, ymax = bt_upr, fill = pval), alpha = 0.4) +
+  geom_line(data = toplo2, aes(color = pval)) +
+  scale_fill_manual(values = c(col2, NA)) + 
+  scale_color_manual(values = c(col2, NA)) +
+  facet_grid(Gear ~ bay_segment, scales = 'free_y') +
+  labs(
+    title = 'Estimated trends, 2010-2020',
+    subtitle = paste(pr, 'CPUE averages'),
+    y = 'Predicted CPUE', 
+    x = NULL, 
+    caption = 'CPUE as gallons / 100m2', 
+    color = NULL, 
+    fill = NULL
+  )
+
+jpeg(here('figs/gamtrnd4.jpeg'), height = 5, width = 10, family = fml, units = 'in', res = 300)
+print(p)
+dev.off()
 
 # gam model fits ----------------------------------------------------------
 
